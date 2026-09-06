@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}Eliminar Cliente{% endblock %}
+
+{% block content %}
+<div class="container-xl">
+  <div class="row mt-5">
+    <div class="col-12 col-md-6 mx-auto">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Eliminar Cliente</h3>
+        </div>
+        <div class="card-body">
+          <p class="text-danger">
+            ¿Estás seguro de que querés eliminar al cliente "{{ object.name }}"? Esta acción eliminará también todas sus pólizas asociadas.
+          </p>
+        </div>
+        <div class="card-footer text-end">
+          <form method="post">
+            {% csrf_token %}
+            <a href="{% url 'client-list' %}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-danger">Eliminar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

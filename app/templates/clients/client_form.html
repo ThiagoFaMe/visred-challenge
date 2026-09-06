@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  {% if object %}Editar Cliente{% else %}Nuevo Cliente{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none">
+    <div class="row align-items-center">
+      <div class="col">
+        <h2 class="page-title">
+          {% if object %}Editar Cliente{% else %}Nuevo Cliente{% endif %}
+        </h2>
+      </div>
+    </div>
+  </div>
+  <div class="row mt-3">
+    <div class="col-12 col-md-8 mx-auto">
+      <form method="post" class="card">
+        {% csrf_token %}
+        <div class="card-body">
+          {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}
+            <div class="invalid-feedback" style="display:block">
+              {% for error in field.errors %}
+                {{ error }}
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% if field.help_text %}
+            <small class="form-hint">{{ field.help_text }}</small>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        <div class="card-footer text-end">
+          <a href="{% url 'client-list' %}" class="btn btn-link">Cancelar</a>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

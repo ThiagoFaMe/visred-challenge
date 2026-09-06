@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ client.name }}{% endblock %}
+
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none">
+    <div class="row align-items-center">
+      <div class="col">
+        <h2 class="page-title">{{ client.name }}</h2>
+      </div>
+      <div class="col-auto ms-auto d-print-none">
+        <div class="btn-list">
+          <a href="{% url 'client-update' client.pk %}" class="btn btn-outline-primary">
+            Editar
+          </a>
+          <a href="{% url 'client-delete' client.pk %}" class="btn btn-outline-danger">
+            Eliminar
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="row row-cards mt-3">
+    <div class="col-md-12">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Información del Cliente</h3>
+        </div>
+        <div class="card-body">
+          <div class="datagrid">
+            <div class="datagrid-item">
+              <div class="datagrid-title">Nombre</div>
+              <div class="datagrid-content">{{ client.name }}</div>
+            </div>
+            <div class="datagrid-item">
+              <div class="datagrid-title">Documento</div>
+              <div class="datagrid-content">{{ client.document_number }}</div>
+            </div>
+            <div class="datagrid-item">
+              <div class="datagrid-title">Email</div>
+              <div class="datagrid-content">{{ client.email }}</div>
+            </div>
+            <div class="datagrid-item">
+              <div class="datagrid-title">Teléfono</div>
+              <div class="datagrid-content">{{ client.phone }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-12">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Pólizas del Cliente</h3>
+          <div class="card-actions">
+            <a href="{% url 'policy-create' %}?client={{ client.pk }}" class="btn btn-primary btn-sm">Nueva Póliza</a>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table card-table table-vcenter text-nowrap">
+            <thead>
+              <tr>
+                <th>Nro. Póliza</th>
+                <th>Tipo</th>
+                <th>Inicio</th>
+                <th>Vencimiento</th>
+                <th>Prima</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for policy in policies %}
+              <tr>
+                <td>{{ policy.policy_number }}</td>
+                <td>{{ policy.policy_type }}</td>
+                <td>{{ policy.start_date|date:"d/m/Y" }}</td>
+                <td>{{ policy.end_date|date:"d/m/Y" }}</td>
+                <td>${{ policy.premium }}</td>
+                <td>
+                  {% if policy.computed_status == 'vigente' %}
+                    <span class="badge bg-success">{{ policy.computed_status_display }}</span>
+                  {% elif policy.computed_status == 'vencida' %}
+                    <span class="badge bg-danger">{{ policy.computed_status_display }}</span>
+                  {% elif policy.computed_status == 'renovada' %}
+                    <span class="badge bg-info">{{ policy.computed_status_display }}</span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ policy.computed_status_display }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center">Este cliente no tiene pólizas.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

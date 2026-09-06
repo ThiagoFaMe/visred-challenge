@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  {% if object %}Editar Póliza{% else %}Nueva Póliza{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none">
+    <div class="row g-2 align-items-center">
+      <div class="col">
+        <h2 class="page-title">
+          {% if object %}Editar Póliza{% else %}Nueva Póliza{% endif %}
+        </h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page-body">
+  <div class="container-xl">
+    <div class="row row-cards">
+      <div class="col-12 col-md-8 mx-auto">
+        <form method="post" class="card">
+          {% csrf_token %}
+          <div class="card-body">
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+              </div>
+            {% endif %}
+            
+            {% for field in form %}
+              <div class="mb-3">
+                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}
+                  <small class="form-hint">{{ field.help_text }}</small>
+                {% endif %}
+                {% if field.errors %}
+                  <div class="invalid-feedback" style="display:block">
+                    {{ field.errors }}
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+          <div class="card-footer text-end">
+            <div class="d-flex">
+              <a href="{% url 'policy-list' %}" class="btn btn-link">Cancelar</a>
+              <button type="submit" class="btn btn-primary ms-auto">Guardar</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - VISRED Seguros{% endblock %}
+
+{% block content %}
+<div class="page-header d-print-none mb-4">
+    <div class="row align-items-center">
+        <div class="col">
+            <h2 class="page-title">Dashboard</h2>
+            <div class="text-muted mt-1">Resumen general del sistema</div>
+        </div>
+        <div class="col-auto ms-auto d-print-none">
+            <div class="btn-list">
+                <a href="{% url 'client-create' %}" class="btn btn-primary d-none d-sm-inline-block">
+                    Nuevo Cliente
+                </a>
+                <a href="{% url 'policy-create' %}" class="btn btn-primary d-none d-sm-inline-block">
+                    Nueva Póliza
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row row-cards mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-sm">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <span class="bg-success text-white avatar"></span>
+                    </div>
+                    <div class="col">
+                        <div class="font-weight-medium">Pólizas Activas</div>
+                        <div class="text-muted">{{ active_count }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-sm">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <span class="bg-danger text-white avatar"></span>
+                    </div>
+                    <div class="col">
+                        <div class="font-weight-medium">Pólizas Vencidas</div>
+                        <div class="text-muted">{{ expired_count }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-sm">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <span class="bg-info text-white avatar"></span>
+                    </div>
+                    <div class="col">
+                        <div class="font-weight-medium">Pólizas Renovadas</div>
+                        <div class="text-muted">{{ renewed_count }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-sm">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <span class="bg-purple text-white avatar"></span>
+                    </div>
+                    <div class="col">
+                        <div class="font-weight-medium">Total Clientes</div>
+                        <div class="text-muted">{{ total_clients }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row row-cards mb-4">
+    <div class="col-sm-6">
+        <div class="card card-sm">
+            <div class="card-body">
+                <div class="font-weight-medium">Total Pólizas</div>
+                <div class="text-muted">{{ total_policies }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6">
+        <div class="card card-sm">
+            <div class="card-body">
+                <div class="font-weight-medium">Prima Total Activa</div>
+                <div class="text-muted">${{ total_premium|default:"0.00"|floatformat:2 }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Últimas Pólizas</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table card-table table-vcenter text-nowrap datatable">
+            <thead>
+                <tr>
+                    <th>Nro. Póliza</th>
+                    <th>Cliente</th>
+                    <th>Tipo</th>
+                    <th>Inicio</th>
+                    <th>Vencimiento</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for policy in recent_policies %}
+                <tr>
+                    <td><a href="{% url 'policy-update' pk=policy.pk %}">{{ policy.policy_number }}</a></td>
+                    <td>{{ policy.client }}</td>
+                    <td>{{ policy.policy_type }}</td>
+                    <td>{{ policy.start_date|date:"d/m/Y" }}</td>
+                    <td>{{ policy.end_date|date:"d/m/Y" }}</td>
+                    <td>
+                        {% if policy.computed_status == 'vigente' %}
+                            <span class="badge bg-success">Vigente</span>
+                        {% elif policy.computed_status == 'vencida' %}
+                            <span class="badge bg-danger">Vencida</span>
+                        {% elif policy.computed_status == 'renovada' %}
+                            <span class="badge bg-info">Renovada</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ policy.computed_status_display }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">No hay pólizas recientes</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
