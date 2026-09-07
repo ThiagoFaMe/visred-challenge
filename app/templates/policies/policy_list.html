@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Pólizas{% endblock %}
 
@@ -27,11 +28,20 @@
   <div class="container-xl">
     <div class="card mb-3">
       <div class="card-body">
-        <form method="GET" action="{% url 'policy-list' %}">
+        {# Toggle: Server-side vs AJAX live mode #}
+        <div class="mb-3 d-flex align-items-center">
+          <label class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="liveFilterToggle">
+            <span class="form-check-label">Filtrado en vivo (sin recarga)</span>
+          </label>
+        </div>
+
+        {# Filter form — works in both modes #}
+        <form method="GET" action="{% url 'policy-list' %}" id="filterForm">
           <div class="row g-3 align-items-end">
             <div class="col-md-4">
               <label class="form-label">Estado</label>
-              <select name="status" class="form-select">
+              <select name="status" id="filterStatus" class="form-select">
                 <option value="">Todos</option>
                 {% for val, label in status_choices %}
                   <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>
@@ -40,10 +50,10 @@
             </div>
             <div class="col-md-4">
               <label class="form-label">Buscar</label>
-              <input type="text" name="search" class="form-control" placeholder="Buscar póliza o cliente..." value="{{ search|default_if_none:'' }}">
+              <input type="text" name="search" id="filterSearch" class="form-control" placeholder="Buscar póliza o cliente..." value="{{ search|default_if_none:'' }}">
             </div>
             <div class="col-md-4">
-              <button type="submit" class="btn btn-primary">Filtrar</button>
+              <button type="submit" class="btn btn-primary" id="filterBtn">Filtrar</button>
               {% if status_filter or search %}
                 <a href="{% url 'policy-list' %}" class="btn btn-link">Limpiar</a>
               {% endif %}
@@ -68,7 +78,7 @@
               <th>Acciones</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="policyTableBody">
             {% for policy in object_list %}
             <tr>
               <td>{{ policy.policy_number }}</td>
@@ -105,7 +115,7 @@
       </div>
       
       {% if is_paginated %}
-      <div class="card-footer d-flex align-items-center">
+      <div class="card-footer d-flex align-items-center" id="paginationFooter">
         <ul class="pagination m-0 ms-auto">
           {% if page_obj.has_previous %}
           <li class="page-item">
@@ -140,4 +150,150 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/**
+ * AJAX live filtering for the policy list.
+ *
+ * When the "live filter" toggle is ON:
+ *   - The form no longer submits (no page reload).
+ *   - Each keystroke or dropdown change triggers a fetch() to /api/polizas/
+ *   - The JSON response is used to rebuild the <tbody> dynamically.
+ *
+ * When the toggle is OFF, the form works normally (server-side reload).
+ */
+(function () {
+  const toggle     = document.getElementById('liveFilterToggle');
+  const form       = document.getElementById('filterForm');
+  const statusSel  = document.getElementById('filterStatus');
+  const searchInp  = document.getElementById('filterSearch');
+  const tbody      = document.getElementById('policyTableBody');
+  const filterBtn  = document.getElementById('filterBtn');
+  const pagination = document.getElementById('paginationFooter');
+
+  let debounceTimer = null;
+  let liveMode = false;
+
+  // -- Badge color mapping ------------------------------------------------
+  const badgeClasses = {
+    'vigente':  'bg-success',
+    'vencida':  'bg-danger',
+    'renovada': 'bg-info',
+  };
+
+  // -- Format a date string (YYYY-MM-DD → DD/MM/YYYY) --------------------
+  function formatDate(isoStr) {
+    const parts = isoStr.split('-');
+    return parts[2] + '/' + parts[1] + '/' + parts[0];
+  }
+
+  // -- Format premium with 2 decimals ------------------------------------
+  function formatPremium(value) {
+    return '$' + parseFloat(value).toFixed(2);
+  }
+
+  // -- Build a table row from a policy JSON object -----------------------
+  function buildRow(p) {
+    const badge = badgeClasses[p.status] || 'bg-secondary';
+    const renewBtn = p.is_renewable
+      ? `<form action="/polizas/${p.id}/renovar/" method="POST" style="display:inline;">
+           <input type="hidden" name="csrfmiddlewaretoken" value="${getCSRFToken()}">
+           <button type="submit" class="btn btn-sm btn-success">Renovar</button>
+         </form>`
+      : '';
+
+    return `<tr>
+      <td>${p.policy_number}</td>
+      <td>${p.client_name} (${p.client_document})</td>
+      <td>${p.policy_type}</td>
+      <td>${formatDate(p.start_date)}</td>
+      <td>${formatDate(p.end_date)}</td>
+      <td>${formatPremium(p.premium)}</td>
+      <td><span class="badge ${badge}">${p.status_display}</span></td>
+      <td>
+        <div class="btn-list flex-nowrap">
+          <a href="/polizas/${p.id}/editar/" class="btn btn-sm btn-outline-primary">Editar</a>
+          <a href="/polizas/${p.id}/eliminar/" class="btn btn-sm btn-outline-danger">Eliminar</a>
+          ${renewBtn}
+        </div>
+      </td>
+    </tr>`;
+  }
+
+  // -- Get CSRF token from cookies ---------------------------------------
+  function getCSRFToken() {
+    const name = 'csrftoken';
+    const cookies = document.cookie.split(';');
+    for (let c of cookies) {
+      c = c.trim();
+      if (c.startsWith(name + '=')) return c.substring(name.length + 1);
+    }
+    return '';
+  }
+
+  // -- Fetch filtered data from the API ----------------------------------
+  async function fetchPolicies() {
+    const params = new URLSearchParams();
+    const status = statusSel.value;
+    const search = searchInp.value.trim();
+
+    if (status) params.set('status', status);
+    if (search) params.set('search', search);
+
+    try {
+      const resp = await fetch('/api/polizas/?' + params.toString());
+      const data = await resp.json();
+
+      if (data.results.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-secondary py-4">No se encontraron pólizas.</td></tr>';
+      } else {
+        tbody.innerHTML = data.results.map(buildRow).join('');
+      }
+
+      // Hide server-side pagination in live mode
+      if (pagination) pagination.style.display = 'none';
+    } catch (err) {
+      console.error('Error fetching policies:', err);
+    }
+  }
+
+  // -- Debounced version (waits 300ms after last keystroke) ---------------
+  function debouncedFetch() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(fetchPolicies, 300);
+  }
+
+  // -- Toggle live mode on/off -------------------------------------------
+  toggle.addEventListener('change', function () {
+    liveMode = this.checked;
+
+    if (liveMode) {
+      // Switch to AJAX mode
+      form.addEventListener('submit', preventSubmit);
+      statusSel.addEventListener('change', fetchPolicies);
+      searchInp.addEventListener('input', debouncedFetch);
+      filterBtn.textContent = 'Buscando...';
+      filterBtn.disabled = true;
+
+      // Immediately fetch with current filter values
+      fetchPolicies();
+    } else {
+      // Switch back to server-side mode
+      form.removeEventListener('submit', preventSubmit);
+      statusSel.removeEventListener('change', fetchPolicies);
+      searchInp.removeEventListener('input', debouncedFetch);
+      filterBtn.textContent = 'Filtrar';
+      filterBtn.disabled = false;
+
+      if (pagination) pagination.style.display = '';
+    }
+  });
+
+  function preventSubmit(e) {
+    e.preventDefault();
+  }
+})();
+</script>
 {% endblock %}
